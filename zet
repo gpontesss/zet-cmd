@@ -29,6 +29,8 @@ x.init() {
         mkdir -p "$ZET_DIR"
         __git init
     fi
+
+    # TODO: remote has to be properly configured.
 }
 
 x.new() {
