@@ -123,16 +123,21 @@ x.sync() {
 
 x.install() {
     local target_dir="/usr/local/bin"
-    while getopts "s" opt; do
+    local ln_install=false
+    while getopts "sd:" opt; do
         case "$opt" in
-        s)
-            echo "Installing with symbolic link."
-            ln -fs "$(realpath "$0")" "$target_dir/zet"
-            exit 0
-            ;;
+            d) target_dir="$OPTARG" ;;
+            s) ln_install=true ;;
         esac
     done
-    cp "$0" "$target_dir"
+
+    if [ $ln_install ]; then
+        echo "Installing with symbolic link."
+        ln -fs "$(realpath "$0")" "$target_dir/zet"
+        exit 0
+    else
+        cp "$0" "$target_dir"
+    fi
 }
 
 case "$1" in
