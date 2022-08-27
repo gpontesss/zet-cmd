@@ -7,9 +7,7 @@ ZET_DIR="${ZET_DIR:-$HOME/zet}"
 BUFF_DIR="$ZET_DIR/buffer"
 
 
-__git() {
-    git -C "$ZET_DIR" "$@"
-}
+__git() { git -C "$ZET_DIR" "$@" ; }
 
 __is_initialized() {
     [ -d "$ZET_DIR" ]
@@ -44,6 +42,30 @@ __buffers() {
         | sed -nE "s:(.*).md$:\1:pg"
 }
 
+__assure_zet_exists() {
+    if [ ! -e "$ZET_DIR/$1/README.md" ]; then
+        echo "Zettel with id '$1' does not exist."
+        exit 1
+    fi
+}
+
+__zet_dir() { echo "$ZET_DIR/$1" ; }
+__zet_file() { echo "$(__zet_dir "$1")/README.md" ; }
+
+__zet_title() { sed -nE "s:^\s*#\s*(.*).*$:\1:p" < "$(__zet_file "$1")" ; }
+
+__zet_info() {
+    local zet_id="$1"
+    __assure_zet_exists "$zet_id"
+
+    cat <<EOF
+ID: $zet_id
+File: $(__zet_file "$zet_id")
+Title: "$(__zet_title "$zet_id")"
+Tags: TODO: implement it
+EOF
+}
+
 x.init() {
     if __is_initialized; then
         echo "Zettelkasten already initialized. ($ZET_DIR)"
@@ -58,10 +80,9 @@ x.new() {
     __check_init
 
     local zet_id="$(date +"%Y%m%d%H%M%S%3N")"
-    local zet_folder="$ZET_DIR/$zet_id"
-    local zet_file="$zet_folder/README.md"
+    local zet_file="$(__zet_file "$zet_id")"
 
-    mkdir -p "$zet_folder"
+    mkdir -p "$(__zet_folder "$zet_id")"
     touch "$zet_file"
     echo "---" >> "$zet_file"
     echo "id: $zet_id" >> "$zet_file"
@@ -121,6 +142,19 @@ x.sync() {
     __git push -u "$remote"
 }
 
+x.list() {
+    __check_init
+    find "$ZET_DIR" -type d -regex "$ZET_DIR/[0-9]+" -printf "%f\n" \
+    | while read zet_id; do
+        echo "$zet_id $(__zet_title "$zet_id")"
+    done
+}
+
+x.info() {
+    __check_init
+    __zet_info "$1"
+}
+
 x.install() {
     local target_dir="/usr/local/bin"
     local ln_install=false
@@ -147,5 +181,7 @@ case "$1" in
     remote)  shift ; x.remote  "$@" ;;
     buff)    shift ; x.buff    "$@" ;;
     install) shift ; x.install "$@" ;;
+    list)    shift ; x.list    "$@" ;;
+    info)    shift ; x.info    "$@" ;;
     *) echo "Unknown command '$1'" ; exit 1 ;;
 esac
