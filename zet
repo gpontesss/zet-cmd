@@ -31,15 +31,21 @@ __check_remote() {
     fi
 }
 
+__assure_dir() {
+    if [ ! -d "$1" ]; then
+        echo "Creating '$1' directory."
+        mkdir -p "$1"
+    fi
+}
+
 x.init() {
     if __is_initialized; then
         echo "Zettelkasten already initialized. ($ZET_DIR)"
     else
         mkdir -p "$ZET_DIR"
         __git init
+        echo "Configure a default remote with 'zet remote add origin <URL>'."
     fi
-
-    # TODO: remote has to be properly configured.
 }
 
 x.new() {
@@ -59,15 +65,23 @@ x.new() {
     exec "$EDITOR" "$zet_file"
 }
 
-# TODO: cache for tag research? files with indexes for each tag that can be
-# used for searching, or refreshed.
-
 x.buff() {
     __check_init
-    exec "$EDITOR" "$ZET_DIR/buffer.md"
+    local buff_dir="$ZET_DIR/buffer"
+    __assure_dir "$buff_dir"
+
+    local buff="${1:-inbox}"
+    if [ -z "$buff" ]; then
+        echo "A buffer should be specified."
+        exit 1
+    fi
+
+    exec "$EDITOR" "$buff_dir/$buff.md"
 }
 
 x.tags() {
+    # TODO: cache for tag research? files with indexes for each tag that can be
+    # used for searching, or refreshed.
     __check_init
 }
 
@@ -85,6 +99,8 @@ x.sync() {
     local remote="${1:-origin}"
     __check_remote "$remote"
 
+    # TODO: when conflicts happen, should a prompt for resolution be opened?
+    __git pull --prune
     __git status --short
     __git add --all
     __git commit --verbose
