@@ -78,8 +78,8 @@ x.buff() {
     local buff=""
     while getopts "ls" opt; do
         case "$opt" in
-            l) __buffers ; exit 0 ;;
-            s) buff="$(__buffers | fzf)" ;;
+        l) __buffers ; exit 0 ;;
+        s) buff="$(__buffers | fzf)" ;;
         esac
     done
     buff="${buff:-${1:-inbox}}"
@@ -122,15 +122,25 @@ x.sync() {
 }
 
 x.install() {
-    cp "$0" /usr/local/bin/
+    local target_dir="/usr/local/bin"
+    while getopts "s" opt; do
+        case "$opt" in
+        s)
+            echo "Installing with symbolic link."
+            ln -fs "$(realpath "$0")" "$target_dir/zet"
+            exit 0
+            ;;
+        esac
+    done
+    cp "$0" "$target_dir"
 }
 
 case "$1" in
-    new)  shift ; x.new  "$@" ;;
-    init) shift ; x.init "$@" ;;
-    sync) shift ; x.sync "$@" ;;
-    remote) shift ; x.remote "$@" ;;
-    buff) shift ; x.buff "$@" ;;
+    new)     shift ; x.new     "$@" ;;
+    init)    shift ; x.init    "$@" ;;
+    sync)    shift ; x.sync    "$@" ;;
+    remote)  shift ; x.remote  "$@" ;;
+    buff)    shift ; x.buff    "$@" ;;
     install) shift ; x.install "$@" ;;
     *) echo "Unknown command '$1'" ; exit 1 ;;
 esac
