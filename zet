@@ -4,6 +4,7 @@ set -o errexit
 
 EDITOR="${EDITOR:-vi}"
 ZET_DIR="${ZET_DIR:-$HOME/zet}"
+BUFF_DIR="$ZET_DIR/buffer"
 
 
 __git() {
@@ -38,6 +39,11 @@ __assure_dir() {
     fi
 }
 
+__buffers() {
+    find "$BUFF_DIR" -type f -name "*.md" -printf "%f\n" \
+        | sed -nE "s:(.*).md$:\1:pg"
+}
+
 x.init() {
     if __is_initialized; then
         echo "Zettelkasten already initialized. ($ZET_DIR)"
@@ -67,16 +73,24 @@ x.new() {
 
 x.buff() {
     __check_init
-    local buff_dir="$ZET_DIR/buffer"
-    __assure_dir "$buff_dir"
+    __assure_dir "$BUFF_DIR"
 
-    local buff="${1:-inbox}"
+    local buff=""
+    while getopts "ls" opt; do
+        case "$opt" in
+            l) __buffers ; exit 0 ;;
+            s) buff="$(__buffers | fzf)" ;;
+        esac
+    done
+    buff="${buff:-${1:-inbox}}"
+
     if [ -z "$buff" ]; then
         echo "A buffer should be specified."
         exit 1
     fi
 
-    exec "$EDITOR" "$buff_dir/$buff.md"
+    # TODO: why the error logging when editor quits without saving?
+    exec "$EDITOR" "$BUFF_DIR/$buff.md" 2> /dev/null
 }
 
 x.tags() {
