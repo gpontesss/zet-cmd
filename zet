@@ -36,7 +36,7 @@ x.init() {
 x.new() {
     __check_init
 
-    local zet_id="$(gdate +"%Y%m%d%H%M%S%3N")"
+    local zet_id="$(date +"%Y%m%d%H%M%S%3N")"
     local zet_folder="$ZET_DIR/$zet_id"
     local zet_file="$zet_folder/README.md"
 
@@ -52,6 +52,12 @@ x.new() {
 
 # TODO: cache for tag research? files with indexes for each tag that can be
 # used for searching, or refreshed.
+
+x.buff() {
+    __check_init
+
+    exec "$EDITOR" "$ZET_DIR/buffer.md"
+}
 
 x.tags() {
     __check_init
@@ -70,9 +76,15 @@ x.sync() {
     __git push
 }
 
+x.install() {
+    cp "$0" /usr/local/bin/
+}
+
 case "$1" in
     new) shift ; x.new "$@" ;;
     init) shift ; x.init "$@" ;;
     sync) shift ; x.sync "$@" ;;
+    buff) shift ; x.buff "$@" ;;
+    install) shift ; x.install "$@" ;;
     *) echo "Unknown command '$1'" ; exit 1 ;;
 esac
