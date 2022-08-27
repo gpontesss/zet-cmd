@@ -22,6 +22,15 @@ __check_init() {
     fi
 }
 
+__check_remote() {
+    local remote="${1:-origin}"
+    if ! __git remote show "$remote" &> /dev/null; then
+        echo "Remote '$remote' is not properly configured."
+        echo "Run 'zet remote add \"$remote\" <URL>' to configure it."
+        exit 1
+    fi
+}
+
 x.init() {
     if __is_initialized; then
         echo "Zettelkasten already initialized. ($ZET_DIR)"
@@ -55,7 +64,6 @@ x.new() {
 
 x.buff() {
     __check_init
-
     exec "$EDITOR" "$ZET_DIR/buffer.md"
 }
 
@@ -67,13 +75,20 @@ x.search() {
     __check_init
 }
 
+x.remote() {
+    __check_init
+    __git remote "$@"
+}
+
 x.sync() {
     __check_init
+    local remote="${1:-origin}"
+    __check_remote "$remote"
 
     __git status --short
     __git add --all
     __git commit --verbose
-    __git push
+    __git push -u "$remote"
 }
 
 x.install() {
@@ -81,9 +96,10 @@ x.install() {
 }
 
 case "$1" in
-    new) shift ; x.new "$@" ;;
+    new)  shift ; x.new  "$@" ;;
     init) shift ; x.init "$@" ;;
     sync) shift ; x.sync "$@" ;;
+    remote) shift ; x.remote "$@" ;;
     buff) shift ; x.buff "$@" ;;
     install) shift ; x.install "$@" ;;
     *) echo "Unknown command '$1'" ; exit 1 ;;
