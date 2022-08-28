@@ -55,6 +55,7 @@ __zet_title() { sed -nE "s:^\s*#\s*(.*).*$:\1:p" "$(__zet_file "$1")" ; }
 __zet_metadata() {
      sed -n "/\s*---\s*/{:loop n; /\s*---\s*/q; p; b loop}" "$(__zet_file "$1")"
 }
+__zet_tags() { __zet_metadata "$1" | yq -r '.tags[]' ; }
 
 x.init() {
     if __is_initialized; then
@@ -108,6 +109,9 @@ x.tags() {
     # TODO: cache for tag research? files with indexes for each tag that can be
     # used for searching, or refreshed.
     __check_init
+    local zet_id="$1"
+    __assure_zet_exists "$zet_id"
+    __zet_tags "$zet_id"
 }
 
 x.search() {
@@ -157,7 +161,7 @@ x.info() {
 ID: $zet_id
 File: $(__zet_file "$zet_id")
 Title: "$(__zet_title "$zet_id")"
-Tags: TODO: implement it
+Tags: $(__zet_metadata "$zet_id" | yq -c -r .tags)
 EOF
 }
 
@@ -191,5 +195,6 @@ case "$1" in
     info)     shift ; x.info     "$@" ;;
     metadata) shift ; x.metadata "$@" ;;
     search)   shift ; x.search   "$@" ;;
+    tags)     shift ; x.tags     "$@" ;;
     *) echo "Unknown command '$1'" ; exit 1 ;;
 esac
