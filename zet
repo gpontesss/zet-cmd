@@ -112,6 +112,7 @@ x.tags() {
 
 x.search() {
     __check_init
+    cd "$ZET_DIR"; rg "$@"
 }
 
 x.remote() {
@@ -138,6 +139,13 @@ x.list() {
     | while read zet_id; do
         echo "$zet_id $(__zet_title "$zet_id")"
     done
+}
+
+x.metadata() {
+    __check_init
+    local zet_id="$1"
+    __assure_zet_exists "$zet_id"
+    __zet_metadata "$zet_id"
 }
 
 x.info() {
@@ -172,12 +180,6 @@ x.install() {
     fi
 }
 
-x.metadata() {
-    local zet_id="$1"
-    __assure_zet_exists "$zet_id"
-    __zet_metadata "$zet_id"
-}
-
 case "$1" in
     new)      shift ; x.new      "$@" ;;
     init)     shift ; x.init     "$@" ;;
@@ -188,5 +190,6 @@ case "$1" in
     list)     shift ; x.list     "$@" ;;
     info)     shift ; x.info     "$@" ;;
     metadata) shift ; x.metadata "$@" ;;
+    search)   shift ; x.search   "$@" ;;
     *) echo "Unknown command '$1'" ; exit 1 ;;
 esac
