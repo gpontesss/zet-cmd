@@ -51,7 +51,10 @@ __assure_zet_exists() {
 
 __zet_dir() { echo "$ZET_DIR/$1" ; }
 __zet_file() { echo "$(__zet_dir "$1")/README.md" ; }
-__zet_title() { sed -nE "s:^\s*#\s*(.*).*$:\1:p" < "$(__zet_file "$1")" ; }
+__zet_title() { sed -nE "s:^\s*#\s*(.*).*$:\1:p" "$(__zet_file "$1")" ; }
+__zet_metadata() {
+     sed -n "/\s*---\s*/{:loop n; /\s*---\s*/q; p; b loop}" "$(__zet_file "$1")"
+}
 
 x.init() {
     if __is_initialized; then
@@ -169,14 +172,21 @@ x.install() {
     fi
 }
 
+x.metadata() {
+    local zet_id="$1"
+    __assure_zet_exists "$zet_id"
+    __zet_metadata "$zet_id"
+}
+
 case "$1" in
-    new)     shift ; x.new     "$@" ;;
-    init)    shift ; x.init    "$@" ;;
-    sync)    shift ; x.sync    "$@" ;;
-    remote)  shift ; x.remote  "$@" ;;
-    buff)    shift ; x.buff    "$@" ;;
-    install) shift ; x.install "$@" ;;
-    list)    shift ; x.list    "$@" ;;
-    info)    shift ; x.info    "$@" ;;
+    new)      shift ; x.new      "$@" ;;
+    init)     shift ; x.init     "$@" ;;
+    sync)     shift ; x.sync     "$@" ;;
+    remote)   shift ; x.remote   "$@" ;;
+    buff)     shift ; x.buff     "$@" ;;
+    install)  shift ; x.install  "$@" ;;
+    list)     shift ; x.list     "$@" ;;
+    info)     shift ; x.info     "$@" ;;
+    metadata) shift ; x.metadata "$@" ;;
     *) echo "Unknown command '$1'" ; exit 1 ;;
 esac
