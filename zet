@@ -12,6 +12,9 @@ declare -A HELP
 __git() { git -C "$ZET_DIR" "$@" ; }
 __is_initialized() { [ -d "$ZET_DIR" ]; return $?; }
 
+# TODO: make it colored.
+__errexit() { echo -e "$1" ; exit 1 ; }
+
 __check_init() {
     if ! __is_initialized; then
         echo "Zettelkasten repository has not been initiated. Run 'zet init' to do so."
@@ -86,7 +89,7 @@ cmd.new() {
     local zet_id="$(date +"%Y%m%d%H%M%S%3N")"
     local zet_file="$(__zet_file "$zet_id")"
 
-    mkdir -p "$(__zet_folder "$zet_id")"
+    mkdir -p "$(__zet_dir "$zet_id")"
     touch "$zet_file"
     echo "---" >> "$zet_file"
     echo "id: $zet_id" >> "$zet_file"
@@ -116,6 +119,7 @@ cmd.buff() {
         case "$opt" in
         l) __buffers ; exit 0 ;;
         s) buff="$(__buffers | fzf)" ;;
+        # TODO: treat unknown options.
         esac
     done
     buff="${buff:-${1:-inbox}}"
@@ -131,14 +135,33 @@ cmd.buff() {
 
 HELP[tags.brief]='Lists tags associated with a Zettel.'
 HELP[tags]='
-Lists the tags associated with a Zettel by its ID.'
+Lists the tags associated with a Zettel by its ID.
+
+Options:
+  -a Lists all used tags in the repository.'
 cmd.tags() {
     # TODO: cache for tag research? files with indexes for each tag that can be
-    # used for searching, or refreshed.
+    # used for searching, or refreshed. as of now, the performance is pretty
+    # bad.
     __check_init
-    local zet_id="$1"
-    __assure_zet_exists "$zet_id"
-    __zet_tags "$zet_id"
+    local all=0
+    while getopts "a" opt; do
+        case "$opt" in
+        a) all=1 ;;
+        *) errexit "Unknown option '$opt'"
+        esac
+    done
+    if [[ $all == 1 ]]; then
+        while read -r zet_id; do
+            __zet_tags "$zet_id"
+        done < <(__all_zets) \
+            | sort -u
+        exit 0
+    else
+        local zet_id="$1"
+        __assure_zet_exists "$zet_id"
+        __zet_tags "$zet_id"
+    fi
 }
 
 HELP[search.brief]='Fuzzy search in entire repository.'
@@ -285,5 +308,5 @@ if [[ -z "$cmd" ]]; then
 elif declare -F "cmd.$cmd" > /dev/null; then
     shift; "cmd.$cmd" "$@"
 else
-    echo "Unknown command '$cmd'" ; exit 1
+    errexit "Unknown command '$cmd'"
 fi
