@@ -13,7 +13,8 @@ __git() { git -C "$ZET_DIR" "$@" ; }
 __is_initialized() { [ -d "$ZET_DIR" ]; return $?; }
 
 # TODO: make it colored.
-__errexit() { echo -e "$1" ; exit 1 ; }
+__err() { echo -e "$1" ; }
+__errexit() { __err "$1" ; exit 1 ; }
 
 __check_init() {
     if ! __is_initialized; then
@@ -335,5 +336,5 @@ if [[ -z "$cmd" ]]; then
 elif declare -F "cmd.$cmd" > /dev/null; then
     shift; "cmd.$cmd" "$@"
 else
-    __errexit "Unknown command '$cmd'"
+    __err "Unknown command '$cmd'" ; cmd.help ; exit 1
 fi
