@@ -57,7 +57,7 @@ __zet_tags() { __zet_metadata "$1" | yq -r '.tags[]' ; }
 HELP[init.brief]="Initalizes a local repository."
 HELP[init]='
 Initializes a local repository.'
-x.init() {
+cmd.init() {
     # TODO: if `gh` CLI is present, prompt for choosing an existent repository,
     # or to create a new one.
     if __is_initialized; then
@@ -80,7 +80,7 @@ ID. Its main file is the "README.md" (Makes it browsable on platforms like
 GitHub.), but other files can be added to the repository, e.g., images etc. A
 Zettel ID is generated automatically based on the instant it`s created, with the
 format "YYYYmmddHHMMSSNNN".'
-x.new() {
+cmd.new() {
     __check_init
 
     local zet_id="$(date +"%Y%m%d%H%M%S%3N")"
@@ -107,7 +107,7 @@ projects.
 Options:
     -l Lists all buffers by their name.
     -s Prompts the selection of a buffer for editing with a fuzzy finder.'
-x.buff() {
+cmd.buff() {
     __check_init
     __assure_dir "$BUFF_DIR"
 
@@ -132,7 +132,7 @@ x.buff() {
 HELP[tags.brief]='Lists tags associated with a Zettel.'
 HELP[tags]='
 Lists the tags associated with a Zettel by its ID.'
-x.tags() {
+cmd.tags() {
     # TODO: cache for tag research? files with indexes for each tag that can be
     # used for searching, or refreshed.
     __check_init
@@ -144,7 +144,7 @@ x.tags() {
 HELP[search.brief]='Fuzzy search in entire repository.'
 HELP[search]='
 Fuzzy searches for a word in all Zettels.'
-x.search() {
+cmd.search() {
     __check_init
     cd "$ZET_DIR"; rg "$@"
 }
@@ -155,7 +155,7 @@ Enables configuration of remotes. This is a proxy to git, so it`s fully
 compatible with `git remote`.
 
 To setup a default remote: `zet remote add origin <URL>`.'
-x.remote() {
+cmd.remote() {
     __check_init
     __git remote "$@"
 }
@@ -165,7 +165,7 @@ HELP[sync]='
 Syncs Zettels with remote repository. (Defaul is `origin`.) It pulls updates on
 remote, commits unstaged changes and pushes changes. (Note that merge may be
 required, and may be performed manually in the repository`s directory.)'
-x.sync() {
+cmd.sync() {
     __check_init
     local remote="${1:-origin}"
     __check_remote "$remote"
@@ -181,7 +181,7 @@ x.sync() {
 HELP[list.brief]="Lists Zettels."
 HELP[list]='
 Lists Zettels by ID and Title.'
-x.list() {
+cmd.list() {
     __check_init
     __all_zets \
     | while read zet_id; do
@@ -193,7 +193,7 @@ HELP[metadata.brief]='Gets metadata for a Zettel.'
 HELP[metadata]='
 Gets metadata for a Zettel by ID. Metadata`s data is YAML, and may be queried
 using the utility `yq`.'
-x.metadata() {
+cmd.metadata() {
     __check_init
     local zet_id="$1"
     __assure_zet_exists "$zet_id"
@@ -203,7 +203,7 @@ x.metadata() {
 HELP[info.brief]='Shows basic information of a zettel.'
 HELP[info]='
 Shows basic information of a zettel by its ID.'
-x.info() {
+cmd.info() {
     __check_init
     local zet_id="$1"
     __assure_zet_exists "$zet_id"
@@ -222,7 +222,7 @@ Options:
     -d TARGET_DIR Target directory to install script.
     -s            Signs that the script should be installed with a symlink,
                   instead of a hard copy.'
-x.install() {
+cmd.install() {
     local target_dir="/usr/local/bin"
     local ln_install=false
     while getopts "sd:" opt; do
@@ -252,7 +252,7 @@ __help_header() {
 HELP[help.brief]="Shows help for a target subcommand."
 HELP[help]='
 Shows help for a target subcommand.'
-x.help() {
+cmd.help() {
     # TODO: list all commands in main body dynamically.
     local name="${1:-main}"
     local body="${HELP[$name]}"
@@ -261,9 +261,8 @@ x.help() {
 }
 
 while read -r line; do
-    [[ "$line" =~ "declare -f x." ]] || continue
-    cmd="${line##declare -f x.}"
-    CMDS+=( "$cmd" )
+    [[ "$line" =~ "declare -f cmd." ]] || continue
+    CMDS+=( "${line##declare -f cmd.}" )
 done < <(declare -F)
 
 __cmd_summary() {
@@ -280,19 +279,11 @@ Zettelkasten command line interface.
 Commands:
 $(__cmd_summary)"
 
-# TODO: make command matching dynamically.
-case "$1" in
-    new)      shift ; x.new      "$@" ;;
-    init)     shift ; x.init     "$@" ;;
-    sync)     shift ; x.sync     "$@" ;;
-    remote)   shift ; x.remote   "$@" ;;
-    buff)     shift ; x.buff     "$@" ;;
-    install)  shift ; x.install  "$@" ;;
-    list)     shift ; x.list     "$@" ;;
-    info)     shift ; x.info     "$@" ;;
-    metadata) shift ; x.metadata "$@" ;;
-    search)   shift ; x.search   "$@" ;;
-    tags)     shift ; x.tags     "$@" ;;
-    help)     shift ; x.help     "$@" ;;
-    *) echo "Unknown command '$1'" ; exit 1 ;;
-esac
+cmd="$1"
+if [[ -z "$cmd" ]]; then
+    cmd.help
+elif declare -F "cmd.$cmd" > /dev/null; then
+    shift; "cmd.$cmd" "$@"
+else
+    echo "Unknown command '$cmd'" ; exit 1
+fi
