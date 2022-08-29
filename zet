@@ -5,14 +5,12 @@ set -o errexit
 EDITOR="${EDITOR:-vi}"
 ZET_DIR="${ZET_DIR:-$HOME/zet}"
 BUFF_DIR="$ZET_DIR/buffer"
+EXE="zet"
 
+declare -A HELP
 
 __git() { git -C "$ZET_DIR" "$@" ; }
-
-__is_initialized() {
-    [ -d "$ZET_DIR" ]
-    return $?
-}
+__is_initialized() { [ -d "$ZET_DIR" ]; return $?; }
 
 __check_init() {
     if ! __is_initialized; then
@@ -44,20 +42,24 @@ __buffers() {
 
 __assure_zet_exists() {
     if [ ! -e "$ZET_DIR/$1/README.md" ]; then
-        echo "Zettel with id '$1' does not exist."
+        echo "Zettel with ID '$1' does not exist."
         exit 1
     fi
 }
 
+__all_zets() { find "$ZET_DIR" -type d -regex "$ZET_DIR/[0-9]+" -printf "%f\n" ; }
 __zet_dir() { echo "$ZET_DIR/$1" ; }
 __zet_file() { echo "$(__zet_dir "$1")/README.md" ; }
 __zet_title() { sed -nE "s:^\s*#\s*(.*).*$:\1:p" "$(__zet_file "$1")" ; }
-__zet_metadata() {
-     sed -n "/\s*---\s*/{:loop n; /\s*---\s*/q; p; b loop}" "$(__zet_file "$1")"
-}
+__zet_metadata() { sed -n "/\s*---\s*/{:loop n; /\s*---\s*/q; p; b loop}" "$(__zet_file "$1")" ; }
 __zet_tags() { __zet_metadata "$1" | yq -r '.tags[]' ; }
 
+HELP[init.brief]="Initalizes a local repository."
+HELP[init]='
+Initializes a local repository.'
 x.init() {
+    # TODO: if `gh` CLI is present, prompt for choosing an existent repository,
+    # or to create a new one.
     if __is_initialized; then
         echo "Zettelkasten already initialized. ($ZET_DIR)"
     else
@@ -67,6 +69,17 @@ x.init() {
     fi
 }
 
+HELP[new.brief]='Creates a new Zettel.'
+HELP[new]='
+Creates a new Zettel and opens a editor. The editor is configured via the
+EDITOR env. variable, and should be available in the systems path. (If EDITOR is
+not set, default is set to `vi`.)
+
+A Zettel is a directory in the root of the repository named with its respective
+ID. Its main file is the "README.md" (Makes it browsable on platforms like
+GitHub.), but other files can be added to the repository, e.g., images etc. A
+Zettel ID is generated automatically based on the instant it`s created, with the
+format "YYYYmmddHHMMSSNNN".'
 x.new() {
     __check_init
 
@@ -83,6 +96,17 @@ x.new() {
     exec "$EDITOR" "$zet_file"
 }
 
+HELP[buff.brief]='Accesses buffer notes.'
+HELP[buff]='
+Accesses a named buffer note. (Default is `inbox`.)
+
+Buffer notes are intended to store raw information that can be latter made into
+a regular Zettel. They are useful for quick notes and storage for future
+projects.
+
+Options:
+    -l Lists all buffers by their name.
+    -s Prompts the selection of a buffer for editing with a fuzzy finder.'
 x.buff() {
     __check_init
     __assure_dir "$BUFF_DIR"
@@ -105,6 +129,9 @@ x.buff() {
     exec "$EDITOR" "$BUFF_DIR/$buff.md" 2> /dev/null
 }
 
+HELP[tags.brief]='Lists tags associated with a Zettel.'
+HELP[tags]='
+Lists the tags associated with a Zettel by its ID.'
 x.tags() {
     # TODO: cache for tag research? files with indexes for each tag that can be
     # used for searching, or refreshed.
@@ -114,16 +141,30 @@ x.tags() {
     __zet_tags "$zet_id"
 }
 
+HELP[search.brief]='Fuzzy search in entire repository.'
+HELP[search]='
+Fuzzy searches for a word in all Zettels.'
 x.search() {
     __check_init
     cd "$ZET_DIR"; rg "$@"
 }
 
+HELP[remote.brief]='Configures remotes.'
+HELP[remote]='
+Enables configuration of remotes. This is a proxy to git, so it`s fully
+compatible with `git remote`.
+
+To setup a default remote: `zet remote add origin <URL>`.'
 x.remote() {
     __check_init
     __git remote "$@"
 }
 
+HELP[sync.brief]='Syncs Zettels with remote repository.'
+HELP[sync]='
+Syncs Zettels with remote repository. (Defaul is `origin`.) It pulls updates on
+remote, commits unstaged changes and pushes changes. (Note that merge may be
+required, and may be performed manually in the repository`s directory.)'
 x.sync() {
     __check_init
     local remote="${1:-origin}"
@@ -137,14 +178,21 @@ x.sync() {
     __git push -u "$remote"
 }
 
+HELP[list.brief]="Lists Zettels."
+HELP[list]='
+Lists Zettels by ID and Title.'
 x.list() {
     __check_init
-    find "$ZET_DIR" -type d -regex "$ZET_DIR/[0-9]+" -printf "%f\n" \
+    __all_zets \
     | while read zet_id; do
         echo "$zet_id $(__zet_title "$zet_id")"
     done
 }
 
+HELP[metadata.brief]='Gets metadata for a Zettel.'
+HELP[metadata]='
+Gets metadata for a Zettel by ID. Metadata`s data is YAML, and may be queried
+using the utility `yq`.'
 x.metadata() {
     __check_init
     local zet_id="$1"
@@ -152,19 +200,28 @@ x.metadata() {
     __zet_metadata "$zet_id"
 }
 
+HELP[info.brief]='Shows basic information of a zettel.'
+HELP[info]='
+Shows basic information of a zettel by its ID.'
 x.info() {
     __check_init
     local zet_id="$1"
     __assure_zet_exists "$zet_id"
 
-    cat <<EOF
-ID: $zet_id
-File: $(__zet_file "$zet_id")
-Title: "$(__zet_title "$zet_id")"
-Tags: $(__zet_metadata "$zet_id" | yq -c -r .tags)
-EOF
+    echo "ID: $zet_id"
+    echo "File: $(__zet_file "$zet_id")"
+    echo "Title: \"$(__zet_title "$zet_id")\""
+    echo "Tags: $(__zet_metadata "$zet_id" | yq -c -r .tags)"
 }
 
+HELP[install.brief]='Install the script locally.'
+HELP[install]='
+Installs the script locally.
+
+Options:
+    -d TARGET_DIR Target directory to install script.
+    -s            Signs that the script should be installed with a symlink,
+                  instead of a hard copy.'
 x.install() {
     local target_dir="/usr/local/bin"
     local ln_install=false
@@ -184,6 +241,46 @@ x.install() {
     fi
 }
 
+__help_header() {
+    if [ "$1" = "main" ]; then
+        echo "usage: $EXE <cmd>"
+    else
+        echo "usage: $EXE $1 [opts]"
+    fi
+}
+
+HELP[help.brief]="Shows help for a target subcommand."
+HELP[help]='
+Shows help for a target subcommand.'
+x.help() {
+    # TODO: list all commands in main body dynamically.
+    local name="${1:-main}"
+    local body="${HELP[$name]}"
+    echo "$(__help_header "$name")"
+    echo "$body"
+}
+
+while read -r line; do
+    [[ "$line" =~ "declare -f x." ]] || continue
+    cmd="${line##declare -f x.}"
+    CMDS+=( "$cmd" )
+done < <(declare -F)
+
+__cmd_summary() {
+    for cmd in "${CMDS[@]}"; do
+        echo -e "$cmd:${HELP[$cmd.brief]}";
+    done \
+    | column -t -s ":" \
+    | awk '{print "  " $0}'
+}
+
+HELP[main]="
+Zettelkasten command line interface.
+
+Commands:
+$(__cmd_summary)"
+
+# TODO: make command matching dynamically.
 case "$1" in
     new)      shift ; x.new      "$@" ;;
     init)     shift ; x.init     "$@" ;;
@@ -196,5 +293,6 @@ case "$1" in
     metadata) shift ; x.metadata "$@" ;;
     search)   shift ; x.search   "$@" ;;
     tags)     shift ; x.tags     "$@" ;;
+    help)     shift ; x.help     "$@" ;;
     *) echo "Unknown command '$1'" ; exit 1 ;;
 esac
