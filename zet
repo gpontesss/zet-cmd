@@ -10,6 +10,14 @@ EXE="zet"
 
 declare -A HELP
 
+
+# TODO: assure requirements are installed.
+if [[ "$OSTYPE" = "darwin"* ]]; then
+     find_bin="gfind" date_bin="gdate"
+else
+    find_bin="find" date_bin="date"
+fi
+
 __git() { git -C "$ZET_DIR" "$@" ; }
 __is_initialized() { [ -d "$ZET_DIR" ]; return $?; }
 
@@ -41,7 +49,7 @@ __assure_dir() {
 }
 
 __buffers() {
-    find "$BUFF_DIR" -type f -name "*.md" -printf "%f\n" \
+    "$find_bin" "$BUFF_DIR" -type f -name "*.md" -printf "%f\n" \
         | sed -nE "s:(.*).md$:\1:pg"
 }
 
@@ -52,7 +60,7 @@ __assure_zet_exists() {
     fi
 }
 
-__all_zets() { find "$ZET_DIR" -type d -regex "$ZET_DIR/[0-9]+" -printf "%f\n" ; }
+__all_zets() { "$find_bin" "$ZET_DIR" -type d -regex "$ZET_DIR/[0-9]+" -printf "%f\n" ; }
 __zet_dir() { echo "$ZET_DIR/$1" ; }
 __zet_file() { echo "$(__zet_dir "$1")/README.md" ; }
 __zet_title() { sed -nE "s:^\s*#\s*(.*).*$:\1:p" "$(__zet_file "$1")" ; }
@@ -95,7 +103,7 @@ format "YYYYmmddHHMMSSNNN".'
 cmd.new() {
     __check_init
 
-    local zet_id="$(date +"%Y%m%d%H%M%S%3N")"
+    local zet_id="$("$date_bin" +"%Y%m%d%H%M%S%3N")"
     local zet_file="$(__zet_file "$zet_id")"
 
     mkdir -p "$(__zet_dir "$zet_id")"
