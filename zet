@@ -10,7 +10,6 @@ EXE="zet"
 
 declare -A HELP
 
-
 # TODO: assure requirements are installed.
 if [[ "$OSTYPE" = "darwin"* ]]; then
      find_bin="gfind" date_bin="gdate"
@@ -113,6 +112,7 @@ cmd.new() {
     echo "tags: []" >> "$zet_file"
     echo "---" >> "$zet_file"
 
+    # TODO: if editor exits without saving, then directory should be deleted.
     exec "$EDITOR" "$zet_file"
 }
 
