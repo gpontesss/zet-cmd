@@ -57,6 +57,13 @@ __zet_title() { sed -nE "s:^\s*#\s*(.*).*$:\1:p" "$(__zet_file "$1")" ; }
 __zet_metadata() { sed -n "/\s*---\s*/{:loop n; /\s*---\s*/q; p; b loop}" "$(__zet_file "$1")" ; }
 __zet_tags() { __zet_metadata "$1" | yq -r '.tags[]' ; }
 
+__all_zets_titled() {
+    __all_zets \
+    | while read zet_id; do
+        echo "$zet_id $(__zet_title "$zet_id")"
+    done
+}
+
 HELP[init.brief]="Initalizes a local repository."
 HELP[init]='
 Initializes a local repository.'
@@ -148,7 +155,6 @@ cmd.tags() {
     while getopts "a" opt; do
         case "$opt" in
         a) all=1 ;;
-        *) errexit "Unknown option '$opt'"
         esac
     done
     if [[ $all == 1 ]]; then
@@ -206,10 +212,7 @@ HELP[list]='
 Lists Zettels by ID and Title.'
 cmd.list() {
     __check_init
-    __all_zets \
-    | while read zet_id; do
-        echo "$zet_id $(__zet_title "$zet_id")"
-    done
+    __all_zets_titled
 }
 
 HELP[metadata.brief]='Gets metadata for a Zettel.'
@@ -283,6 +286,30 @@ cmd.help() {
     echo "$body"
 }
 
+HELP[edit.brief]="Prompts for editting an already existent Zettel."
+HELP[edit]='
+Prompts for editting an already existent Zettel.
+
+Options:
+  -s Prompts a Zettel fuzzy selection.'
+cmd.edit() {
+    __check_init
+    local selection=0
+    while getopts "s" opt; do
+        case "$opt" in
+            s) selection=1 ;;
+        esac
+    done
+
+    local zet_id="$1" 
+    if [[ $selection == 1 ]]; then
+        zet_id="$(__all_zets_titled | fzf | awk '{print $1}')"
+    fi
+
+    __assure_zet_exists "$zet_id"
+    "$EDITOR" "$(__zet_file "$zet_id")"
+}
+
 while read -r line; do
     [[ "$line" =~ "declare -f cmd." ]] || continue
     CMDS+=( "${line##declare -f cmd.}" )
@@ -308,5 +335,5 @@ if [[ -z "$cmd" ]]; then
 elif declare -F "cmd.$cmd" > /dev/null; then
     shift; "cmd.$cmd" "$@"
 else
-    errexit "Unknown command '$cmd'"
+    __errexit "Unknown command '$cmd'"
 fi
