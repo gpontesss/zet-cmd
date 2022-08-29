@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash 
+# /\ OSX doesn't have a >= 4.0 bash at /usr/bin.
 
 set -o errexit
 
