@@ -3,12 +3,16 @@
 
 set -o errexit
 
-EDITOR="${EDITOR:-vi}"
-ZET_DIR="${ZET_DIR:-$HOME/zet}"
-BUFF_DIR="$ZET_DIR/buffer"
-EXE="zet"
+: EDITOR="${EDITOR:-vi}"
+: ZET_DIR="${ZET_DIR:-$HOME/zet}"
+: BUFF_DIR="$ZET_DIR/buffer"
+: EXE="${EXE:="${0##*/}"}"
 
 declare -A HELP
+
+declare reset="\e[0m"
+declare red="\e[0;31m"
+
 
 # TODO: assure requirements are installed.
 if [[ "$OSTYPE" = "darwin"* ]]; then
@@ -20,8 +24,7 @@ fi
 __git() { git -C "$ZET_DIR" "$@" ; }
 __is_initialized() { [ -d "$ZET_DIR" ]; return $?; }
 
-# TODO: make it colored.
-__err() { echo -e "$1" ; }
+__err() { echo -e "${red}$1${reset}" 1>&2 ; }
 __errexit() { __err "$1" ; exit 1 ; }
 
 __check_init() {
@@ -185,7 +188,20 @@ HELP[search]='
 Fuzzy searches for a word in all Zettels.'
 cmd.search() {
     __check_init
-    cd "$ZET_DIR"; rg "$@"
+
+    local fuzzy=0
+    while getopts "f" opt; do
+        case "$opt" in
+        f) fuzzy=1 ;;
+        esac
+    done
+    shift $((OPTIND-1))
+
+    if [[ $fuzzy == 1 ]]; then
+        exec rg . "$ZET_DIR" | fzf
+    else
+        exec rg "$@" "$ZET_DIR"
+    fi
 }
 
 HELP[remote.brief]='Configures remotes.'
@@ -289,9 +305,9 @@ HELP[help.brief]="Shows help for a target subcommand."
 HELP[help]='
 Shows help for a target subcommand.'
 cmd.help() {
-    # TODO: list all commands in main body dynamically.
     local name="${1:-main}"
     local body="${HELP[$name]}"
+    [[ -z "$body" ]] && __errexit "No command named '$name'"
     echo "$(__help_header "$name")"
     echo "$body"
 }
