@@ -54,7 +54,7 @@ __zet_file() { echo "$(__zet_dir "$1")/README.md" ; }
 __zet_title() { sed -nE "s:^\s*#\s*(.*).*$:\1:p" "$(__zet_file "$1")" ; }
 __zet_metadata() { sed -n "/\s*---\s*/{:loop n; /\s*---\s*/q; p; b loop}" "$(__zet_file "$1")" ; }
 __zet_tags() { __zet_metadata "$1" | yq -r '.tags[]' ; }
-__assure_dir() { [[ ! -d "$1" ]] && echo "Creating '$1' directory." && mkdir -p "$1" ; }
+__assure_dir() { [[ ! -d "$1" ]] && echo "Creating '$1' directory." && mkdir -p "$1" || true ; }
 __assure_zet_exists() { [[ ! -e "$(__zet_file "$1")" ]] && __errexit "Zettel with ID '$1' does not exist." ; }
 
 __all_tags() {
