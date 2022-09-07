@@ -8,6 +8,9 @@ ZET_DIR="${ZET_DIR:-$HOME/zet}"
 BUFF_DIR="$ZET_DIR/buffer"
 EXE="${EXE:="${0##*/}"}"
 
+export ZET_DIR
+export BUFF_DIR
+
 declare -A HELP
 
 declare reset="\e[0m"
@@ -47,6 +50,8 @@ __buffers() {
     "$find_bin" "$BUFF_DIR" -type f -name "*.md" -printf "%f\n" \
         | sed -nE "s:(.*).md$:\1:pg"
 }
+__buff_file() { echo "$BUFF_DIR/$1.md" ; }
+__buff_preview() { cat "$(__buff_file $1)" ; }
 
 __all_zets() { "$find_bin" "$ZET_DIR" -type d -regex "$ZET_DIR/[0-9]+" -printf "%f\n" ; }
 __zet_dir() { echo "$ZET_DIR/$1" ; }
@@ -56,6 +61,7 @@ __zet_metadata() { sed -n "/\s*---\s*/{:loop n; /\s*---\s*/q; p; b loop}" "$(__z
 __zet_tags() { __zet_metadata "$1" | yq -r '.tags[]' ; }
 __assure_dir() { [[ ! -d "$1" ]] && echo "Creating '$1' directory." && mkdir -p "$1" || true ; }
 __assure_zet_exists() { [[ ! -e "$(__zet_file "$1")" ]] && __errexit "Zettel with ID '$1' does not exist." ; }
+__zet_preview() { cat "$(__zet_file $1)" ; }
 
 __all_tags() {
     while read -r zet_id; do
@@ -71,6 +77,12 @@ __all_zets_titled() {
         echo "$zet_id $(__zet_title "$zet_id")"
     done
 }
+
+export -f __zet_dir
+export -f __zet_file
+export -f __zet_preview
+export -f __buff_file
+export -f __buff_preview
 
 HELP[init.brief]="Initalizes a local repository."
 HELP[init]='
@@ -134,7 +146,7 @@ cmd.buff() {
     while getopts "ls" opt; do
         case "$opt" in
         l) __buffers ; exit 0 ;;
-        s) buff="$(__buffers | fzf)" ;;
+        s) buff="$(__buffers | fzf --preview="__buff_preview {}")" ;;
         # TODO: treat unknown options.
         esac
     done
@@ -145,7 +157,7 @@ cmd.buff() {
     fi
 
     # TODO: why the error logging when editor quits without saving?
-    exec "$EDITOR" "$BUFF_DIR/$buff.md" 2> /dev/null
+    exec "$EDITOR" "$(__buff_file "$buff")" 2> /dev/null
 }
 
 HELP[tags.brief]='Lists tags associated with a Zettel.'
@@ -189,7 +201,7 @@ cmd.search() {
     shift $((OPTIND-1))
 
     if [[ $fuzzy == 1 ]]; then
-        exec rg . "$ZET_DIR" | fzf
+        exec rg . "$ZET_DIR" | fzf --preview='cat "$(echo {} | cut -d':' -f1)"'
     else
         exec rg "$@" "$ZET_DIR"
     fi
@@ -320,7 +332,7 @@ cmd.edit() {
 
     local zet_id="$1" 
     if [[ $selection == 1 ]]; then
-        zet_id="$(__all_zets_titled | fzf | awk '{print $1}')"
+        zet_id="$(__all_zets_titled | fzf --preview="__zet_preview {1}" | awk '{print $1}')"
     fi
 
     __assure_zet_exists "$zet_id"
