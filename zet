@@ -229,7 +229,7 @@ cmd.sync() {
     __check_remote "$remote"
 
     # TODO: when conflicts happen, should a prompt for resolution be opened?
-    __git pull --prune "$remote" "$(git branch --show-current)"
+    __git pull --prune "$remote" "$(__git branch --show-current)"
     __git status --short || true
     __git add --all || true
     __git commit --verbose || true
