@@ -241,7 +241,7 @@ HELP[list]='
 Lists Zettels by ID and Title.'
 cmd.list() {
     __check_init
-    __all_zets_titled
+    __all_zets_titled | sort
 }
 
 HELP[metadata.brief]='Gets metadata for a Zettel.'
